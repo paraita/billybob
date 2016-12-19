@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from billybob import BillyBob
 
 
-print "hello"
+bb = BillyBob()
