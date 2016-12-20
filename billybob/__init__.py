@@ -12,7 +12,10 @@ from wit import Wit
 
 
 class BillyBob:
-    def wit_send(self, request, response):
+
+    @classmethod
+    def wit_send(cls, request, response):
+        print 'Getting from user... {0}'.format(request)
         print 'Sending to user... {0}'.format(response['text'])
 
     def _post_simple(self, channel, msg):
@@ -28,10 +31,12 @@ class BillyBob:
                                    attachments=attachments,
                                    as_user=True)
 
-    def _check_intent(self, intent, key_intent):
+    @classmethod
+    def _check_intent(cls, intent, key_intent):
         return intent['entities'] and intent['entities'][key_intent]
 
-    def _fmt_prs(self, prs, repo):
+    @classmethod
+    def _fmt_prs(cls, prs, repo):
         return [
             {'text': '<{0}|{1}>: <{2}|{3}>'.format(p['url'],
                                                    p['repo_name'],
@@ -53,7 +58,7 @@ class BillyBob:
                 if repo == 'github':
                     prs = fetch_pr.get_prs('github')
                     prs_fmt = self._fmt_prs(prs, 'github')
-                    self._post_fmt(chan, 'You asked for the PRs from github !', prs_fmt)
+                    self._post_fmt(chan, 'Here are the open pull requests on Github !', prs_fmt)
                 elif repo == 'bitbucket':
                     prs = fetch_pr.get_prs('bitbucket')
                     prs_fmt = self._fmt_prs(prs, 'bitbucket')
@@ -79,13 +84,15 @@ class BillyBob:
         attachments = []
         tz = gettz('Europe/Paris')
         time_now = datetime.datetime.now(tz=tz)
-        attachment = {}
-
         for passage in buses:
+            attachment = {}
             bus_time = passage['bus_time']
+            dest = passage['dest']
             diff_t = bus_time.replace(tzinfo=tz) - time_now
-            att_str = 'In {0} min (at {1})'.format(int(diff_t.total_seconds() / 60),
-                                                   bus_time)
+            minutes = int(diff_t.total_seconds() / 60)
+            att_str = 'In {0} min (at {1}) towards {2}'.format(minutes,
+                                                               bus_time.strftime("%H:%M"),
+                                                               dest)
             if passage['is_real_time']:
                 attachment['color'] = red_color
             else:
@@ -93,11 +100,12 @@ class BillyBob:
             attachment['text'] = att_str
             attachment['fallback'] = att_str
             attachments.append(attachment)
-        self._post_fmt(chan, "Here are the next bus passages !", attachments)
+        self._post_fmt(chan, "Here are the next bus passages cowboy !", attachments)
         return {}
 
     def __init__(self, slack_token=None, wit_token=None, **kargs):
         self.BOT_NAME = 'BillyBob'
+        # TODO: get the BOT_ID at runtime
         self.BOT_ID = 'U1ZUKEDT4'
         if slack_token is None:
             self.slack_token = os.environ['SLACK_API_TOKEN']
@@ -148,4 +156,4 @@ class BillyBob:
                     self.handle_command(command, chan)
                 time.sleep(1)
         else:
-            print "Connection failed. Invalid Slack token or bot ID?"
+            print "Connection failed. Invalid tokens ?"
