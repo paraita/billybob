@@ -1,32 +1,74 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 import os
 import logging
 import time
+import sophiabus230
+import datetime
+from dateutil.tz import gettz
 from slackclient import SlackClient
 from wit import Wit
 
 
 class BillyBob:
-
     def wit_send(self, request, response):
         print 'Sending to user... {0}'.format(response['text'])
 
-    def wit_get_prs(self, params):
-        print 'requested get_prs ! {0}'.format(params)
+    def _post_simple(self, channel, msg):
         self.slack_client.api_call("chat.postMessage",
-                                   channel=params['context']['chan'].encode("ascii","ignore"),
-                                   text='requested get_prs !',
+                                   channel=channel,
+                                   text=msg,
                                    as_user=True)
+
+    def _post_fmt(self, channel, msg):
+        self.slack_client.api_call("chat.postMessage",
+                                   channel=channel,
+                                   text="Here are the next bus passages !",
+                                   attachments=msg,
+                                   as_user=True)
+
+    def _check_intent(self, intent, key_intent):
+        return intent['entities'] and intent['entities'][key_intent]
+
+    def wit_get_prs(self, params):
+        chan = params['context']['chan'].encode("ascii", "ignore")
+        print 'requested get_prs ! {0}'.format(params)
+        if self._check_intent(params, 'pull_request'):
+            entities = params['entities']['pull_request']
+            if len(entities) == 1 and entities[0]['value']:
+                repo = entities[0]['value']
+                if repo == 'github':
+                    self._post_simple(chan, 'You asked for the PRs from github')
+                elif repo == 'bitbucket':
+                    self._post_simple(chan, "Sorry bruh I don't know how to do that yet :(")
+                elif repo == 'everywhere':
+                    self._post_simple(chan, 'You asked for the PRs from github and bitbucket')
+                else:
+                    self._post_simple(chan, 'WTF is that ?')
         return {}
 
     def wit_get_bus_tt(self, params):
-        print 'requested get_bus_tt ! {0}'.format(params)
-        self.slack_client.api_call("chat.postMessage",
-                                   channel='G3FS40MFA',
-                                   text='requested get_bus_tt !',
-                                   as_user=True)
+        red_color = "#ff0000"
+        green_color = "#36a64f"
+        buses = sophiabus230.get_next_buses()
+        attachments = []
+        tz = gettz('Europe/Paris')
+        time_now = datetime.datetime.now(tz=tz)
+        attachment = {}
+
+        for passage in buses:
+            bus_time = passage['bus_time']
+            diff_t = bus_time.replace(tzinfo=tz) - time_now
+            att_str = 'In {0} min (at {1})'.format(int(diff_t.total_seconds() / 60),
+                                                   bus_time)
+            if passage['is_real_time']:
+                attachment['color'] = red_color
+            else:
+                attachment['color'] = green_color
+            attachment['text'] = att_str
+            attachment['fallback'] = att_str
+            attachments.append(attachment)
+        self._post_fmt(params['context']['chan'].encode("ascii", "ignore"), attachments)
         return {}
 
     def __init__(self, slack_token=None, wit_token=None, **kargs):

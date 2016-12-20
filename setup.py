@@ -13,7 +13,9 @@ setup(name='billybob',
       packages=['billybob'],
       install_requires=[
           'slackclient',
-          'wit'
+          'wit',
+          'python-dateutil',
+          'sophiabus230'
       ],
       test_suite='nose.collector',
       tests_require=[
