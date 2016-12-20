@@ -4,6 +4,7 @@
 from billybob import BillyBob
 
 
-bb = BillyBob(SLACK_API_TOKEN="slack api token", JENKINS_TOKEN="jenkins token")
+bb = BillyBob(slack_token="xoxb-67971489922-kA41fi3F2LANkkdbsOhlOGuD",
+              wit_token="PGCJHLO7LMO656YWKFNYLIIOOPEQL7GH")
 
-bb.print_params()
+bb.start_service()
