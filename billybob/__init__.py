@@ -5,6 +5,7 @@ import logging
 import time
 import sophiabus230
 import datetime
+import fetch_pr
 from dateutil.tz import gettz
 from slackclient import SlackClient
 from wit import Wit
@@ -20,15 +21,27 @@ class BillyBob:
                                    text=msg,
                                    as_user=True)
 
-    def _post_fmt(self, channel, msg):
+    def _post_fmt(self, channel, text, attachments):
         self.slack_client.api_call("chat.postMessage",
                                    channel=channel,
-                                   text="Here are the next bus passages !",
-                                   attachments=msg,
+                                   text=text,
+                                   attachments=attachments,
                                    as_user=True)
 
     def _check_intent(self, intent, key_intent):
         return intent['entities'] and intent['entities'][key_intent]
+
+    def _fmt_prs(self, prs, repo):
+        return [
+            {'text': '<{0}|{1}>: <{2}|{3}>'.format(p['url'],
+                                                   p['repo_name'],
+                                                   p['pr_url'],
+                                                   p['title']),
+             'fallback': '{0}: {1}'.format(p['repo_name'], p['title']),
+             'color': 'warning'
+             }
+            for p in prs[repo]
+            ]
 
     def wit_get_prs(self, params):
         chan = params['context']['chan'].encode("ascii", "ignore")
@@ -38,11 +51,22 @@ class BillyBob:
             if len(entities) == 1 and entities[0]['value']:
                 repo = entities[0]['value']
                 if repo == 'github':
-                    self._post_simple(chan, 'You asked for the PRs from github')
+                    prs = fetch_pr.get_prs('github')
+                    prs_fmt = self._fmt_prs(prs, 'github')
+                    self._post_fmt(chan, 'You asked for the PRs from github !', prs_fmt)
                 elif repo == 'bitbucket':
+                    prs = fetch_pr.get_prs('bitbucket')
+                    prs_fmt = self._fmt_prs(prs, 'bitbucket')
                     self._post_simple(chan, "Sorry bruh I don't know how to do that yet :(")
                 elif repo == 'everywhere':
-                    self._post_simple(chan, 'You asked for the PRs from github and bitbucket')
+                    prs = fetch_pr.get_prs('everywhere')
+                    prs_fmt_bitbucket = self._fmt_prs(prs, 'bitbucket')
+                    prs_fmt_github = self._fmt_prs(prs, 'github')
+                    self._post_simple(chan, "You asked for the pull requests on github and bitbucket...")
+                    if len(prs_fmt_bitbucket) > 0:
+                        self._post_fmt(chan, '', prs_fmt_bitbucket)
+                    if len(prs_fmt_github) > 0:
+                        self._post_fmt(chan, '', prs_fmt_github)
                 else:
                     self._post_simple(chan, 'WTF is that ?')
         return {}
@@ -50,6 +74,7 @@ class BillyBob:
     def wit_get_bus_tt(self, params):
         red_color = "#ff0000"
         green_color = "#36a64f"
+        chan = params['context']['chan'].encode("ascii", "ignore")
         buses = sophiabus230.get_next_buses()
         attachments = []
         tz = gettz('Europe/Paris')
@@ -68,7 +93,7 @@ class BillyBob:
             attachment['text'] = att_str
             attachment['fallback'] = att_str
             attachments.append(attachment)
-        self._post_fmt(params['context']['chan'].encode("ascii", "ignore"), attachments)
+        self._post_fmt(chan, "Here are the next bus passages !", attachments)
         return {}
 
     def __init__(self, slack_token=None, wit_token=None, **kargs):
