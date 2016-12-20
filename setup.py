@@ -12,7 +12,8 @@ setup(name='billybob',
       license='MIT',
       packages=['billybob'],
       install_requires=[
-          'slackclient'
+          'slackclient',
+          'wit'
       ],
       test_suite='nose.collector',
       tests_require=[
