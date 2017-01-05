@@ -15,7 +15,10 @@ setup(name='billybob',
           'slackclient',
           'wit',
           'python-dateutil',
-          'sophiabus230'
+          'sophiabus230',
+          'oauth2client',
+          'gspread',
+          'PyOpenSSL'
       ],
       test_suite='nose.collector',
       tests_require=[
